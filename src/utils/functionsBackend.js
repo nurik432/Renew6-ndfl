@@ -1,35 +1,27 @@
 import { nanoid } from "nanoid";
 import iconv from "iconv-lite";
 import xml2js from "xml2js";
-
 const builder = new xml2js.Builder({
   xmldec: { version: "1.0", encoding: "windows-1251" },
 });
-
 const parser = new xml2js.Parser();
-
 export async function correctNumOrder(obj) {
   try {
     const spravDohs = obj?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
-
     spravDohs.forEach((spravDoh, index) => {
       spravDoh["$"]["НомСпр"] = (index + 1).toString();
     });
-
     return obj;
   } catch (error) {
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function correctAbcOrder(obj) {
   try {
     const spravDohs = obj?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
-
     spravDohs.sort((a, b) => {
       const fioA = a["ПолучДох"][0]["ФИО"][0]["$"];
       const fioB = b["ПолучДох"][0]["ФИО"][0]["$"];
-
       if (fioA["Фамилия"] < fioB["Фамилия"]) {
         return -1;
       }
@@ -50,31 +42,25 @@ export async function correctAbcOrder(obj) {
       }
       return 0;
     });
-
     return obj;
   } catch (error) {
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function mergeXmlFiles(obj1, obj2) {
   try {
     const spravDox1 = obj1["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
     const spravDox2 = obj2["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
-
     const lastNomSpr = parseInt(spravDox1[spravDox1.length - 1]["$"]["НомСпр"]);
-
     spravDox2.forEach((spravDox, index) => {
       spravDox["$"]["НомСпр"] = (lastNomSpr + index + 1).toString();
     });
-
     let combinedSpravDox = spravDox1.concat(spravDox2);
-
     combinedSpravDox = combinedSpravDox.reduce((acc, curr) => {
       const existingEntry = acc.find(
         (entry) =>
           // entry["ПолучДох"][0]["$"]["ИННФЛ"] ===
-          //   curr["ПолучДох"][0]["$"]["ИННФЛ"] &&
+          // curr["ПолучДох"][0]["$"]["ИННФЛ"] &&
           entry["ПолучДох"][0]["ФИО"][0]["$"]["Имя"]?.toLowerCase() ===
             curr["ПолучДох"][0]["ФИО"][0]["$"]["Имя"]?.toLowerCase() &&
           entry["ПолучДох"][0]["ФИО"][0]["$"]["Фамилия"]?.toLowerCase() ===
@@ -93,7 +79,6 @@ export async function mergeXmlFiles(obj1, obj2) {
               svSumDoh["$"]["Месяц"] === currSvSumDoh["$"]["Месяц"] &&
               svSumDoh["$"]["КодДоход"] === currSvSumDoh["$"]["КодДоход"]
           );
-
           if (existingSvSumDoh) {
             existingSvSumDoh["$"]["СумДоход"] = parseFloat(
               (
@@ -107,7 +92,6 @@ export async function mergeXmlFiles(obj1, obj2) {
             );
           }
         });
-
         curr["СведДох"][0]["НалВычССИ"]?.forEach((currNalVyachSSI) => {
           existingEntry["СведДох"][0]["НалВычССИ"]?.forEach(
             (existingNalVyachSSI) => {
@@ -131,11 +115,9 @@ export async function mergeXmlFiles(obj1, obj2) {
                   if (!existingEntry["СведДох"][0]["НалВычССИ"]) {
                     existingEntry["СведДох"][0]["НалВычССИ"] = [];
                   }
-
                   if (!existingEntry["СведДох"][0]["НалВычССИ"][0]) {
                     existingEntry["СведДох"][0]["НалВычССИ"][0] = {};
                   }
-
                   if (
                     !existingEntry["СведДох"][0]["НалВычССИ"][0]["ПредВычССИ"]
                   ) {
@@ -150,7 +132,6 @@ export async function mergeXmlFiles(obj1, obj2) {
             }
           );
         });
-
         existingEntry["СведДох"][0]["СумИтНалПер"][0]["$"]["НалИсчисл"] =
           parseFloat(
             (
@@ -160,7 +141,6 @@ export async function mergeXmlFiles(obj1, obj2) {
               parseFloat(curr["СведДох"][0]["СумИтНалПер"][0]["$"]["НалИсчисл"])
             ).toFixed(2)
           );
-
         existingEntry["СведДох"][0]["СумИтНалПер"][0]["$"]["НалУдерж"] =
           parseFloat(
             (
@@ -173,15 +153,13 @@ export async function mergeXmlFiles(obj1, obj2) {
       } else {
         acc.push(curr);
       }
-
       return acc;
     }, []);
-
     combinedSpravDox = combinedSpravDox.reduce((acc, curr) => {
       const existingEntryIndex = acc.findIndex(
         (entry) =>
           // entry["ПолучДох"][0]["$"]["ИННФЛ"] ===
-          //   curr["ПолучДох"][0]["$"]["ИННФЛ"] &&
+          // curr["ПолучДох"][0]["$"]["ИННФЛ"] &&
           entry["ПолучДох"][0]["ФИО"][0]["$"]["Имя"]?.toLowerCase() ===
             curr["ПолучДох"][0]["ФИО"][0]["$"]["Имя"]?.toLowerCase() &&
           entry["ПолучДох"][0]["ФИО"][0]["$"]["Фамилия"]?.toLowerCase() ===
@@ -191,25 +169,20 @@ export async function mergeXmlFiles(obj1, obj2) {
           entry["ПолучДох"][0]["$"]["ДатаРожд"] ===
             curr["ПолучДох"][0]["$"]["ДатаРожд"]
       );
-
       if (existingEntryIndex === -1) {
         acc.push(curr);
       }
-
       return acc;
     }, []);
-
     obj1["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"] = combinedSpravDox;
-
     const sumNalIsch1 =
       obj1?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
         "СумНалИсч"
       ];
     const sumNalIsch2 =
-      obj1?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
+      obj2?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
         "СумНалИсч"
       ];
-
     const sumNalUder1 =
       obj1?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
         "СумНалУдерж"
@@ -218,7 +191,6 @@ export async function mergeXmlFiles(obj1, obj2) {
       obj2?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
         "СумНалУдерж"
       ];
-
     const sumNalVoz1 =
       obj1?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
         "СумНалВозвр"
@@ -227,90 +199,76 @@ export async function mergeXmlFiles(obj1, obj2) {
       obj2?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
         "СумНалВозвр"
       ];
-
     obj1["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
       "СумНалИсч"
     ] = +sumNalIsch1 + +sumNalIsch2;
     obj1["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"][
       "СумНалУдерж"
     ] = +sumNalUder1 + +sumNalUder2;
-
     return obj1;
   } catch (error) {
     console.error(error);
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function correctUderzhTax(xml) {
   try {
-    const header = xml?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0];
-
-    const sumNalIsch = header["$"]["СумНалИсч"];
-    const sumNalVoz = header["$"]["СумНалВозвр"];
-
-    if (sumNalVoz === "0") {
-      header["$"]["СумНалУдерж"] = sumNalIsch;
-      header["$"]["СумНалНеУдерж"] = 0;
-      header["$"]["СумНалИзлУдерж"] = 0;
-    } else {
-      header["$"]["СумНалУдерж"] = +sumNalIsch + +sumNalVoz;
-      header["$"]["СумНалНеУдерж"] = 0;
-      header["$"]["СумНалИзлУдерж"] = 0;
-    }
-
-    const spravDohs = xml["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
-
-    console.log(spravDohs);
-
-    spravDohs.forEach((spravDoh) => {
-      const svedDoh = spravDoh["СведДох"];
-      const nalIsch = svedDoh[0]["СумИтНалПер"][0]["$"]["НалИсчисл"];
-      const nalVoz = svedDoh[0]["СумИтНалПер"][0]["$"]["НалВозвр"];
-      svedDoh[0]["СумИтНалПер"][0]["$"]["НалПеречисл"] !== undefined
-        ? (svedDoh[0]["СумИтНалПер"][0]["$"]["НалПеречисл"] = 0)
-        : null;
-      console.log(nalIsch);
-      if (nalVoz === undefined) {
-        svedDoh[0]["СумИтНалПер"][0]["$"]["НалУдерж"] = nalIsch;
-        svedDoh[0]["СумИтНалПер"][0]["$"]["НалУдержЛиш"] = 0;
-        console.log(nalVoz);
+    const headers = xml?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"];
+    headers.forEach((header) => {
+      const sumNalIsch = header["$"]["СумНалИсч"];
+      const sumNalVoz = header["$"]["СумНалВозвр"] || "0";
+      if (sumNalVoz === "0") {
+        header["$"]["СумНалУдерж"] = sumNalIsch;
+        header["$"]["СумНалНеУдерж"] = 0;
+        header["$"]["СумНалИзлУдерж"] = 0;
       } else {
-        svedDoh[0]["СумИтНалПер"][0]["$"]["НалУдерж"] = +nalIsch + +nalVoz;
-        svedDoh[0]["СумИтНалПер"][0]["$"]["НалУдержЛиш"] = 0;
+        header["$"]["СумНалУдерж"] = (+sumNalIsch + +sumNalVoz).toString();
+        header["$"]["СумНалНеУдерж"] = 0;
+        header["$"]["СумНалИзлУдерж"] = 0;
       }
     });
-
+    const spravDohs = xml["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
+    spravDohs.forEach((spravDoh) => {
+      const svedDohs = spravDoh["СведДох"];
+      svedDohs.forEach((svedDoh) => {
+        const nalIsch = svedDoh["СумИтНалПер"][0]["$"]["НалИсчисл"];
+        const nalVoz = svedDoh["СумИтНалПер"][0]["$"]["НалВозвр"] || "0";
+        svedDoh["СумИтНалПер"][0]["$"]["НалПеречисл"] !== undefined
+          ? (svedDoh["СумИтНалПер"][0]["$"]["НалПеречисл"] = 0)
+          : null;
+        if (nalVoz === "0") {
+          svedDoh["СумИтНалПер"][0]["$"]["НалУдерж"] = nalIsch;
+          svedDoh["СумИтНалПер"][0]["$"]["НалУдержЛиш"] = 0;
+        } else {
+          svedDoh["СумИтНалПер"][0]["$"]["НалУдерж"] = (+nalIsch + +nalVoz).toString();
+          svedDoh["СумИтНалПер"][0]["$"]["НалУдержЛиш"] = 0;
+        }
+      });
+    });
     return xml;
   } catch (error) {
     console.error(error);
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function correctNegativeIncome(xml) {
   try {
     const spravDohs = xml?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
     let sumDoh = 0;
-
     console.log(spravDohs);
-
     spravDohs.forEach((spravDoh) => {
       let dohVych = spravDoh["СведДох"][0]["ДохВыч"][0]["СвСумДох"];
       const fio = spravDoh["ПолучДох"][0]["ФИО"][0]["$"]; // Получаем ФИО
-
       let groupedDohVych = [];
       dohVych.forEach((svSumDoh) => {
         sumDoh += parseFloat(svSumDoh["$"]["СумДоход"]);
         const month = svSumDoh["$"]["Месяц"];
         const kodDohod = svSumDoh["$"]["КодДоход"];
         const sumDohod = parseFloat(svSumDoh["$"]["СумДоход"]);
-
         const existingEntry = groupedDohVych.find(
           (entry) =>
             entry["$"]["Месяц"] === month && entry["$"]["КодДоход"] === kodDohod
         );
-
         if (existingEntry) {
           existingEntry["$"]["СумДоход"] = (
             parseFloat(existingEntry["$"]["СумДоход"]) + sumDohod
@@ -319,36 +277,28 @@ export async function correctNegativeIncome(xml) {
           groupedDohVych.push(svSumDoh);
         }
       });
-
       groupedDohVych.sort((a, b) => {
         const monthA = parseInt(a["$"]["Месяц"], 10);
         const monthB = parseInt(b["$"]["Месяц"], 10);
-
         return monthA - monthB;
       });
-
       // Заменяем исходный массив новым
       spravDoh["СведДох"][0]["ДохВыч"][0]["СвСумДох"] = groupedDohVych;
-
       // Проверяем, есть ли запись с месяцем '01'
       const hasJanuary = groupedDohVych.some(
         (entry) => entry["$"]["Месяц"] === "01" && entry["$"]["СумДоход"] > 0
       );
-
       if (!hasJanuary) {
         // Находим запись с месяцем '02'
         const februaryEntry = groupedDohVych.find(
           (entry) => entry["$"]["Месяц"] === "02"
         );
-
         if (februaryEntry) {
           // Сохраняем исходную сумму дохода
           const originalSum = parseFloat(februaryEntry["$"]["СумДоход"]);
-
           // Отнимаем 30% от суммы дохода
           const deductedSum = originalSum * 0.7;
           februaryEntry["$"]["СумДоход"] = deductedSum.toFixed(2);
-
           // Создаем новую запись с месяцем '01' и 30% от исходной суммы
           const januarySum = originalSum * 0.3;
           const januaryEntry = {
@@ -360,30 +310,25 @@ export async function correctNegativeIncome(xml) {
             },
           };
           groupedDohVych.push(januaryEntry);
-
           // Проверяем, есть ли разница из-за округления
           const totalAfter =
             parseFloat(februaryEntry["$"]["СумДоход"]) +
             parseFloat(januaryEntry["$"]["СумДоход"]);
           const difference = originalSum - totalAfter;
-
           if (difference !== 0) {
             // Добавляем разницу к записи для января
             januaryEntry["$"]["СумДоход"] = (januarySum + difference).toFixed(
               2
             );
           }
-
           // Сортируем массив снова, чтобы учесть новую запись
           groupedDohVych.sort((a, b) => {
             const monthA = parseInt(a["$"]["Месяц"], 10);
             const monthB = parseInt(b["$"]["Месяц"], 10);
-
             return monthA - monthB;
           });
         }
       }
-
       let hasNegative;
       do {
         hasNegative = false;
@@ -391,7 +336,6 @@ export async function correctNegativeIncome(xml) {
           // Используем groupedDohVych вместо dohVych
           const sumDohod = parseFloat(svSumDoh["$"]["СумДоход"]);
           const kodDohod = svSumDoh["$"]["КодДоход"];
-
           if (sumDohod < 0) {
             const positiveIncomeIndex = groupedDohVych.findIndex(
               // Используем groupedDohVych вместо dohVych
@@ -399,7 +343,6 @@ export async function correctNegativeIncome(xml) {
                 doh["$"]["КодДоход"] === kodDohod &&
                 parseFloat(doh["$"]["СумДоход"]) > 0
             );
-
             if (positiveIncomeIndex !== -1) {
               const newSumDohod =
                 parseFloat(
@@ -408,11 +351,9 @@ export async function correctNegativeIncome(xml) {
                 sumDohod;
               groupedDohVych[positiveIncomeIndex]["$"]["СумДоход"] = // Используем groupedDohVych вместо dohVych
                 newSumDohod.toFixed(2);
-
               if (newSumDohod === 0) {
                 groupedDohVych.splice(positiveIncomeIndex, 1); // Используем groupedDohVych вместо dohVych
               }
-
               svSumDoh["$"]["СумДоход"] = "0";
               hasNegative = true;
             } else {
@@ -424,14 +365,12 @@ export async function correctNegativeIncome(xml) {
           }
         });
       } while (hasNegative);
-
       // Удалить нулевые строки
       spravDoh["СведДох"][0]["ДохВыч"][0]["СвСумДох"] = groupedDohVych.filter(
         // Используем groupedDohVych вместо dohVych
         (svSumDoh) => parseFloat(svSumDoh["$"]["СумДоход"]) !== 0
       );
     });
-
     return xml;
   } catch (error) {
     throw new Error("Ошибка при обработке XML");
@@ -440,11 +379,9 @@ export async function correctNegativeIncome(xml) {
 export async function correctTax(xml) {
   try {
     const spravDohs = xml?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
-
     let sumNalIschSec13 = 0;
     let sumNalIschSec15 = 0;
     let sumNalIschSec30 = 0;
-
     spravDohs.forEach((spravDoh) => {
       const fio = spravDoh["ПолучДох"][0]["ФИО"][0]["$"];
       spravDoh["СведДох"].forEach((spravDoh) => {
@@ -477,9 +414,7 @@ export async function correctTax(xml) {
       });
     });
     console.log(sumNalIschSec15 + "////////");
-
     const header = xml?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"];
-
     header.forEach((header) => {
       if (header["$"]["Ставка"] === "13") {
         header["$"]["СумНалИсч"] = sumNalIschSec13;
@@ -489,14 +424,12 @@ export async function correctTax(xml) {
         header["$"]["СумНалИсч"] = sumNalIschSec30;
       }
     });
-
     return xml;
   } catch (error) {
     console.log(error);
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function setNumCorr(obj, num) {
   try {
     if (parseInt(num) < 10) {
@@ -504,10 +437,8 @@ export async function setNumCorr(obj, num) {
     } else {
       obj.Файл.Документ[0].$.НомКорр = `${num}`;
     }
-
     if (obj.Файл.Документ[0].$.Период === "34") {
       const spravDohs = obj?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
-
       spravDohs.forEach((spravDoh) => {
         if (parseInt(num) < 10) {
           spravDoh["$"]["НомКорр"] = `0${num}`;
@@ -521,7 +452,6 @@ export async function setNumCorr(obj, num) {
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function nullCorr(obj) {
   try {
     obj["Файл"]["Документ"][0]["НДФЛ6.2"][0]["ОбязНА"][0]["$"]["СумНалВоз"] = 0;
@@ -538,14 +468,14 @@ export async function nullCorr(obj) {
         }
       });
     }
-
-    let objData =
-      obj["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"][0]["$"];
-
-    Object.keys(objData).forEach((key) => {
-      if (key !== "Ставка" && key !== "КБК") {
-        objData[key] = "0";
-      }
+    const raschs = obj["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"];
+    raschs.forEach((rasch) => {
+      let objData = rasch["$"];
+      Object.keys(objData).forEach((key) => {
+        if (key !== "Ставка" && key !== "КБК") {
+          objData[key] = "0";
+        }
+      });
     });
     if (obj.Файл.Документ[0].$.Период === "34") {
       const spravDohs = obj?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
@@ -565,36 +495,29 @@ export async function nullCorr(obj) {
         });
       });
     }
-
     return obj;
   } catch (error) {
     console.error(error);
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function kvartal(obj) {
   try {
-    const sumNalIsch =
-      obj?.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИсч;
-    const sumNalUder =
-      obj?.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалУдерж;
-    const sumVich = obj?.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумВыч;
-    const nalBaza = obj?.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.НалБаза;
-
-    obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИсч =
-      nalBaza * 0.13;
-    obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалУдерж =
-      obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИсч;
+    const raschs = obj?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"];
+    raschs.forEach((rasch) => {
+      if (rasch["$"]["Ставка"] === "13") {
+        const nalBaza = rasch["$"]["НалБаза"];
+        rasch["$"]["СумНалИсч"] = Math.round(nalBaza * 0.13).toString();
+        rasch["$"]["СумНалУдерж"] = rasch["$"]["СумНалИсч"];
+      }
+    });
     return obj;
   } catch (error) {
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function processXmlData(files) {
-  const dataMapc = {};
-
+  const dataMap = {};
   try {
     files.forEach((xmlString) => {
       xml2js.parseString(xmlString, (err, result) => {
@@ -611,19 +534,20 @@ export async function processXmlData(files) {
         const documentDate = new Date(isoDate);
         console.log(document);
         const taxInfos = document.УвИсчСумНалог;
-
         const inn = document.СвНП[0].НПЮЛ[0]["$"].ИННЮЛ;
-
         taxInfos.forEach((taxInfo) => {
           if (
             taxInfo["$"].КБК !== "18210102010011000110" &&
             taxInfo["$"].КБК !== "18210102010013000110" &&
-            taxInfo["$"].КБК !== "18210102080011000110"
-            // taxInfo["$"].КБК !== "18210102010013000110"
+            taxInfo["$"].КБК !== "18210102080011000110" &&
+            taxInfo["$"].КБК !== "18210102210011000110" &&
+            taxInfo["$"].КБК !== "18210102150011000110" &&
+            taxInfo["$"].КБК !== "18210102160011000110" &&
+            taxInfo["$"].КБК !== "18210102170011000110" &&
+            taxInfo["$"].КБК !== "18210102230011000110"
           ) {
             return;
           }
-
           const key = `${taxInfo["$"].КППДекл}_${taxInfo["$"].ОКТМО}_${taxInfo["$"].Период}_${taxInfo["$"].НомерМесКварт}_${inn}`;
           const existingData = dataMap[key];
           if (!existingData || documentDate === existingData.date) {
@@ -653,7 +577,6 @@ export async function processXmlData(files) {
         });
       });
     });
-
     const sortedData = Object.values(dataMap).map((item) => ({
       INN: item.inn,
       KPP: item.kpp,
@@ -661,7 +584,6 @@ export async function processXmlData(files) {
       CYMMA: item.sum,
       "KOD PERIODA": item.period,
     }));
-
     sortedData.sort((a, b) => {
       const order = [
         "21 01",
@@ -679,13 +601,11 @@ export async function processXmlData(files) {
       ];
       return order.indexOf(a["KOD PERIODA"]) - order.indexOf(b["KOD PERIODA"]);
     });
-
     return sortedData;
   } catch (error) {
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function parseXml(xml) {
   try {
     const obj = await parser.parseStringPromise(xml);
@@ -697,16 +617,13 @@ export async function parseXml(xml) {
     throw new Error("Ошибка при обработке XML");
   }
 }
-
 export async function compareXmls(xml1, xml2) {
   const spravDohs1 = xml1?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
   const spravDohs2 = xml2?.["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"];
-
   // Функция сравнения для проверки идентичности двух справок
   const areEqual = (sprav1, sprav2) => {
     return JSON.stringify(sprav1) === JSON.stringify(sprav2);
   };
-
   // Удаление из spravDohs1 справок, которые также присутствуют в spravDohs2
   const uniqueSpravDohs1 = spravDohs1.filter((sprav1) => {
     const hasMatch = spravDohs2.some((sprav2) => {
@@ -715,102 +632,84 @@ export async function compareXmls(xml1, xml2) {
     });
     return !hasMatch;
   });
-
   uniqueSpravDohs1.forEach((sprav, index) => {
     sprav["$"]["НомСпр"] = index + 1;
   });
-
   // Замена spravDohs1 на uniqueSpravDohs1 в obj1
   xml1["Файл"]["Документ"][0]["НДФЛ6.2"][0]["СправДох"] = uniqueSpravDohs1;
-
   const newXml = builder.buildObject(xml1);
-
   // Возвращение обновленного obj1
   return newXml;
 }
-
 export async function downloadFile(obj) {
   try {
     const xml = builder.buildObject(obj);
     const name = `${obj.Файл["$"].ИдФайл}.xml`;
-
     const content = iconv.encode(xml, "win1251");
-
     const blob = new Blob([content.buffer], {
       type: "application/octet-stream",
     });
-
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = name;
-
     // Начало скачивания файла
     link.click();
-
     // Освобождение URL после скачивания файла
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error("Ошибка при обработке XML", error);
   }
 }
-
 export async function check(obj) {
   const errors = [];
-
-  const sumDoh =
-    obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНачислНач; //???????
-  const sumVich = obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумВыч;
-  const kolFZ = obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.КолФЛ;
-  const sumNalIsch =
-    obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИсч;
-  const allowedRound = kolFZ * 0.5;
-  const sumNalUder =
-    obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалУдерж;
-  const sumNalVozv =
-    obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалВозвр;
-  const sumNalIzlUder =
-    obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИзлУдерж;
-
-  if (Math.abs((sumDoh - sumVich) * 0.13 - sumNalIsch) > allowedRound) {
-    errors.push({
-      message: `Сумма налога исчисленного не равна 13% от разницы между суммой дохода и вычетом.`,
-      additionalInfo:
-        `
+  const raschs = obj["Файл"]["Документ"][0]["НДФЛ6.2"][0]["РасчСумНал"];
+  raschs.forEach((rasch) => {
+    if (rasch["$"]["Ставка"] === "13") {
+      const sumDoh = rasch["$"]["СумНачислНач"];
+      const sumVich = rasch["$"]["СумВыч"];
+      const kolFZ = rasch["$"]["КолФЛ"];
+      const sumNalIsch = rasch["$"]["СумНалИсч"];
+      const allowedRound = kolFZ * 0.5;
+      const sumNalUder = rasch["$"]["СумНалУдерж"];
+      const sumNalVozv = rasch["$"]["СумНалВозвр"];
+      const sumNalIzlUder = rasch["$"]["СумНалИзлУдерж"];
+      if (Math.abs((sumDoh - sumVich) * 0.13 - sumNalIsch) > allowedRound) {
+        errors.push({
+          message: `Сумма налога исчисленного не равна 13% от разницы между суммой дохода и вычетом.`,
+          additionalInfo:
+            `
       Налоговая база: ${sumDoh - sumVich} * Ставка: 0.13 = ${Math.round(
-          (sumDoh - sumVich) * 0.13
-        )} ± погрешность: ${allowedRound} ≠ 140 строка: ${sumNalIsch} ` +
-        ` Разница: ${Math.floor((sumDoh - sumVich) * 0.13 - sumNalIsch)}`,
-      location: `obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИсч`,
-      function: kvartal,
-    });
-  }
-
-  if (sumNalIsch !== sumNalUder - sumNalVozv - sumNalIzlUder) {
-    errors.push({
-      message: `Сумма налога удержанного не равна сумме налога исчисленного.`,
-      additionalInfo: `Сумма налога исчисленного: ${sumNalIsch} ≠ Сумма налога удержанного: ${sumNalUder} - Сумма налога возвращенного: ${sumNalVozv} - Сумма налога излишне удержанного: ${sumNalIzlUder}`,
-      location: `obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИсч`,
-      function: kvartal,
-    });
-  }
-  /////////////////////////////////////////
-
+              (sumDoh - sumVich) * 0.13
+            )} ± погрешность: ${allowedRound} ≠ 140 строка: ${sumNalIsch} ` +
+            ` Разница: ${Math.floor((sumDoh - sumVich) * 0.13 - sumNalIsch)}`,
+          location: `obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИсч`,
+          function: kvartal,
+        });
+      }
+      if (sumNalIsch !== sumNalUder - sumNalVozv - sumNalIzlUder) {
+        errors.push({
+          message: `Сумма налога удержанного не равна сумме налога исчисленного.`,
+          additionalInfo: `Сумма налога исчисленного: ${sumNalIsch} ≠ Сумма налога удержанного: ${sumNalUder} - Сумма налога возвращенного: ${sumNalVozv} - Сумма налога излишне удержанного: ${sumNalIzlUder}`,
+          location: `obj.Файл.Документ[0]["НДФЛ6.2"][0].РасчСумНал[0].$.СумНалИсч`,
+          function: kvartal,
+        });
+      }
+    }
+  });
   return errors;
 }
-
 // export {
-//   parseXml,
-//   mergeXmlFiles,
-//   updateXml,
-//   correctNegativeIncome,
-//   correctUderzhTax,
-//   setNumCorr,
-//   nullCorr,
-//   kvartal,
-//   processXmlData,
-//   downloadFile,
-//   compareXmls,
-//   check,
+// parseXml,
+// mergeXmlFiles,
+// updateXml,
+// correctNegativeIncome,
+// correctUderzhTax,
+// setNumCorr,
+// nullCorr,
+// kvartal,
+// processXmlData,
+// downloadFile,
+// compareXmls,
+// check,
 // };
