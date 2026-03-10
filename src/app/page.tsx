@@ -44,10 +44,9 @@ export default function Page() {
     setLoading(true);
   };
 
-  const isMobile =
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    );
+const isMobile = typeof navigator !== 'undefined'
+  ? /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  : false;
 
   if (isMobile) {
     return (
