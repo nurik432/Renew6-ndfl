@@ -536,19 +536,21 @@ export async function processXmlData(files) {
         const taxInfos = document.УвИсчСумНалог;
         const inn = document.СвНП[0].НПЮЛ[0]["$"].ИННЮЛ;
         taxInfos.forEach((taxInfo) => {
+          const kbk = taxInfo?.["$"]?.КБК;
           if (
-            taxInfo["$"].КБК !== "18210102010011000110" &&
-            taxInfo["$"].КБК !== "18210102010013000110" &&
-            taxInfo["$"].КБК !== "18210102080011000110" &&
-            taxInfo["$"].КБК !== "18210102210011000110" &&
-            taxInfo["$"].КБК !== "18210102150011000110" &&
-            taxInfo["$"].КБК !== "18210102160011000110" &&
-            taxInfo["$"].КБК !== "18210102170011000110" &&
-            taxInfo["$"].КБК !== "18210102230011000110"
+            !kbk ||
+            (kbk !== "18210102010011000110" &&
+              kbk !== "18210102010013000110" &&
+              kbk !== "18210102080011000110" &&
+              kbk !== "18210102210011000110" &&
+              kbk !== "18210102150011000110" &&
+              kbk !== "18210102160011000110" &&
+              kbk !== "18210102170011000110" &&
+              kbk !== "18210102230011000110")
           ) {
             return;
           }
-          const key = `${taxInfo["$"].КППДекл}_${taxInfo["$"].ОКТМО}_${taxInfo["$"].Период}_${taxInfo["$"].НомерМесКварт}_${inn}`;
+          const key = `${taxInfo["$"].КППДекл}_${taxInfo["$"].ОКТМО}_${taxInfo["$"].Период}_${taxInfo["$"].НомерМесКварт}_${inn}_${kbk}`;
           const existingData = dataMap[key];
           if (!existingData || documentDate === existingData.date) {
             dataMap[key] = {
@@ -557,6 +559,7 @@ export async function processXmlData(files) {
               date: documentDate,
               kpp: taxInfo["$"].КППДекл,
               oktmo: taxInfo["$"].ОКТМО,
+              kbk: kbk,
               sum: (
                 parseFloat(taxInfo["$"].СумНалогАванс) +
                 (existingData ? parseFloat(existingData.sum) : 0)
@@ -570,6 +573,7 @@ export async function processXmlData(files) {
               date: documentDate,
               kpp: taxInfo["$"].КППДекл,
               oktmo: taxInfo["$"].ОКТМО,
+              kbk: kbk,
               sum: taxInfo["$"].СумНалогАванс,
               period: `${taxInfo["$"].Период} ${taxInfo["$"].НомерМесКварт}`,
             };
@@ -581,6 +585,7 @@ export async function processXmlData(files) {
       INN: item.inn,
       KPP: item.kpp,
       OKTMO: item.oktmo,
+      KBK: item.kbk,
       CYMMA: item.sum,
       "KOD PERIODA": item.period,
     }));

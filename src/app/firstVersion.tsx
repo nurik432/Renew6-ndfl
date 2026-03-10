@@ -53,16 +53,24 @@ const Home: React.FC<HomeProps> = ({ changeVersion }) => {
     const kppSet = new Set(tableData.map((item) => item.KPP));
     const oktmoSet = new Set(tableData.map((item) => item.OKTMO));
     const periodSet = new Set(tableData.map((item) => item["KOD PERIODA"]));
+    const innSet = new Set(tableData.map((item) => item.INN));
+    const kbkSet = new Set(
+      tableData.map((item) => item.KBK).filter((item) => item !== undefined)
+    );
 
     // Преобразование Set обратно в массив
     const kppOptions = Array.from(kppSet);
     const oktmoOptions = Array.from(oktmoSet);
+    const innOptions = Array.from(innSet);
     const periodOptions = Array.from(periodSet);
+    const kbkOptions = Array.from(kbkSet);
 
     setFilterOptions({
+      INN: innOptions,
       KPP: kppOptions,
       OKTMO: oktmoOptions,
       "KOD PERIODA": periodOptions,
+      KBK: kbkOptions,
     });
   }, [tableData]);
 
@@ -571,10 +579,10 @@ const Home: React.FC<HomeProps> = ({ changeVersion }) => {
                           setTableData(tableData);
                           console.log(tableData);
                           const csvData = [
-                            "KPP;OKTMO;CYMMA;KOD PERIODA",
+                            "INN;KPP;OKTMO;CYMMA;KOD PERIODA;KBK",
                             ...Object.values(tableData).map(
                               (item) =>
-                                `${item.KPP};${item.OKTMO};${item.CYMMA};${item["KOD PERIODA"]}`
+                                `${item.INN};${item.KPP};${item.OKTMO};${item.CYMMA};${item["KOD PERIODA"]};${item.KBK}`
                             ),
                           ].join("\n");
                           setUvedCSV(csvData);
@@ -602,7 +610,9 @@ const Home: React.FC<HomeProps> = ({ changeVersion }) => {
                   </DrawerDescription>
                 </DrawerHeader>
                 <div className="w-full p-4">
-                  <DataTableDemo data={tableData} options={filterOptions} />
+                  {tableData.length > 0 && filterOptions ? (
+                    <DataTableDemo data={tableData} options={filterOptions} />
+                  ) : null}
                 </div>
               </DrawerContent>
             </Drawer>

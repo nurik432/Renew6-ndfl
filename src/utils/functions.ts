@@ -681,6 +681,17 @@ interface TableRow {
   "KOD PERIODA": string;
 }
 
+const ALLOWED_KBKS = new Set([
+  "18210102010011000110",
+  "18210102010013000110",
+  "18210102080011000110",
+  "18210102210011000110",
+  "18210102150011000110",
+  "18210102160011000110",
+  "18210102170011000110",
+  "18210102230011000110",
+]);
+
 async function processXmlData(files: string[]): Promise<TableRow[]> {
   const dataMap: Record<
     string,
@@ -717,17 +728,12 @@ async function processXmlData(files: string[]): Promise<TableRow[]> {
         const inn = document.СвНП[0].НПЮЛ[0]["$"].ИННЮЛ;
 
         taxInfos.forEach((taxInfo) => {
-          if (
-            taxInfo["$"].КБК !== "18210102010011000110" &&
-            taxInfo["$"].КБК !== "18210102010013000110" &&
-            taxInfo["$"].КБК !== "18210102080011000110" &&
-            taxInfo["$"].КБК !== "18210102210011000110"
-            // taxInfo["$"].КБК !== "18210102010013000110"
-          ) {
+          const kbk = taxInfo?.["$"]?.КБК;
+          if (!kbk || !ALLOWED_KBKS.has(kbk)) {
             return;
           }
 
-          const key = `${taxInfo["$"].КППДекл}_${taxInfo["$"].ОКТМО}_${taxInfo["$"].Период}_${taxInfo["$"].НомерМесКварт}_${inn}_${taxInfo["$"].КБК}`;
+          const key = `${taxInfo["$"].КППДекл}_${taxInfo["$"].ОКТМО}_${taxInfo["$"].Период}_${taxInfo["$"].НомерМесКварт}_${inn}_${kbk}`;
           const existingData = dataMap[key];
           if (!existingData || documentDate === existingData.date) {
             dataMap[key] = {
@@ -736,7 +742,7 @@ async function processXmlData(files: string[]): Promise<TableRow[]> {
               date: documentDate,
               kpp: taxInfo["$"].КППДекл,
               oktmo: taxInfo["$"].ОКТМО,
-              kbk: taxInfo["$"].КБК,
+              kbk: kbk,
               sum: (
                 parseFloat(taxInfo["$"].СумНалогАванс) +
                 (existingData ? parseFloat(existingData.sum) : 0)
@@ -746,7 +752,7 @@ async function processXmlData(files: string[]): Promise<TableRow[]> {
           } else if (!existingData || documentDate > existingData.date) {
             dataMap[key] = {
               inn: inn,
-              kbk: taxInfo["$"].КБК,
+              kbk: kbk,
               id: nanoid(),
               date: documentDate,
               kpp: taxInfo["$"].КППДекл,
